@@ -110,7 +110,7 @@ html,body{height:100%;background:var(--bg);font-family:var(--body);color:var(--t
     <div style="width:32px"></div>
     <div style="text-align:center">
       <div id="header-title">Ziewnic BMS</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:1px">BUILD 20260223-09</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:1px">BUILD 20260223-10</div>
     </div>
     <button id="connect-btn" onclick="toggleBLE()">
       <div class="live-dot" id="live-dot"></div>
@@ -825,6 +825,9 @@ async function invLogin(){
 async function invFetchNow(){
   invSetStatus('connecting');
   if(!invToken){
+    var u=localStorage.getItem('inv_user');
+    var s=localStorage.getItem('inv_sn');
+    addLog('INV creds: user='+(u?u:'MISSING')+' sn='+(s?s:'MISSING'));
     addLog('INV logging in...');
     var ok=await invLogin();
     if(!ok){invSetStatus('error');addLog('INV login failed','err');return;}
