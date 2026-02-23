@@ -110,7 +110,7 @@ html,body{height:100%;background:var(--bg);font-family:var(--body);color:var(--t
     <div style="width:32px"></div>
     <div style="text-align:center">
       <div id="header-title">Ziewnic BMS</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:1px">BUILD 20260223-14</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:1px">BUILD 20260223-15</div>
     </div>
     <button id="connect-btn" onclick="toggleBLE()">
       <div class="live-dot" id="live-dot"></div>
@@ -300,8 +300,8 @@ html,body{height:100%;background:var(--bg);font-family:var(--body);color:var(--t
               style="width:100%;background:#0d1320;border:1px solid #2a3a55;border-radius:8px;padding:10px 12px;color:#e2e8f0;font-family:var(--mono);font-size:13px;outline:none"/>
           </div>
           <div>
-            <div style="font-size:11px;color:#8a9ab0;margin-bottom:4px;font-family:var(--disp);letter-spacing:1px">PASSWORD</div>
-            <input id="inv-pass-input" type="password" autocomplete="current-password" placeholder="••••••••"
+            <div style="font-size:11px;color:#8a9ab0;margin-bottom:4px;font-family:var(--disp);letter-spacing:1px">PASSWORD <span style="color:#4a5a70;font-size:10px;letter-spacing:0px">(or paste MD5 hash directly)</span></div>
+            <input id="inv-pass-input" type="text" autocomplete="current-password" placeholder="your password or 32-char MD5 hash"
               style="width:100%;background:#0d1320;border:1px solid #2a3a55;border-radius:8px;padding:10px 12px;color:#e2e8f0;font-family:var(--mono);font-size:13px;outline:none"/>
           </div>
           <div>
@@ -810,8 +810,9 @@ async function invLogin(){
   var u=localStorage.getItem('inv_user'),p=localStorage.getItem('inv_pass');
   if(!u||!p) return false;
   try{
-    var hashedPw=md5(p);
-    addLog('INV login: username='+u+' password='+hashedPw.substring(0,8)+'...');
+    // If stored password looks like an MD5 hash (32 hex chars), use it directly
+    var hashedPw=/^[a-f0-9]{32}$/i.test(p) ? p : md5(p);
+    addLog('INV login: username='+u+' pw_hash='+hashedPw.substring(0,8)+'...');
     var loginBody='username='+encodeURIComponent(u)+'&password='+encodeURIComponent(hashedPw);
     var json=await proxyFetch('/app/api/mobile/user/login','POST',{},loginBody);
     addLog('INV resp: '+json.code+' '+(json.message||''));
