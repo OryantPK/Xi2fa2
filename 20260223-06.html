@@ -110,7 +110,7 @@ html,body{height:100%;background:var(--bg);font-family:var(--body);color:var(--t
     <div style="width:32px"></div>
     <div style="text-align:center">
       <div id="header-title">Ziewnic BMS</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:1px">BUILD 20260223-11</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:1px">BUILD 20260223-12</div>
     </div>
     <button id="connect-btn" onclick="toggleBLE()">
       <div class="live-dot" id="live-dot"></div>
@@ -716,7 +716,8 @@ function updateTempUI(temps){
   temps.forEach(function(t,i){var p=Math.max(0,Math.min(100,((t-15)/40)*100)),col=t>40?'var(--red)':t>33?'var(--yellow)':'var(--green)';con.innerHTML+='<div class="temp-card"><div class="temp-bg" style="height:'+p+'%;background:'+col+'15"></div><div class="temp-val" style="color:'+col+'">'+t.toFixed(1)+'C</div><div class="temp-lbl">'+(labels[i]||'Temp '+(i+1))+'</div></div>';});
 }
 
-// ── iSOLAR API ────────────────────────────────────────────────────────────────
+// MD5 implementation
+function md5(s){function L(k,d){return(k<<d)|(k>>>(32-d))}function K(G,k){var I,d,F,H,x;F=(G&2147483648);H=(k&2147483648);I=(G&1073741824);d=(k&1073741824);x=(G&1073741823)+(k&1073741823);if(I&d){return(x^2147483648^F^H)}if(I|d){if(x&1073741824){return(x^3221225472^F^H)}else{return(x^1073741824^F^H)}}else{return(x^F^H)}}function r(d,F,k,I,G,H,x){d=K(d,K(K((F&k)|(~F&I),G),x));return K(L(d,H),F)}function q(d,F,k,I,G,H,x){d=K(d,K(K((F&I)|(k&~I),G),x));return K(L(d,H),F)}function p(d,F,k,I,G,H,x){d=K(d,K(K(F^k^I,G),x));return K(L(d,H),F)}function n(d,F,k,I,G,H,x){d=K(d,K(K(k^(F|~I),G),x));return K(L(d,H),F)}function u(G){var F='',k='',d;for(d=3;d>=0;d--){k=parseInt((G>>>(d*8))&255).toString(16);while(k.length<2)k='0'+k;F+=k}return F}var C=[],N,O,M,Q,j,k,m,l,o;s=function(d){var k='',F=d.length*8,G=0,H=0,I=0;while(G<F){H=G>>5;I=G%32;var x=d.charCodeAt(G/8)&0xFF;if(x>127){x=(x>>6)|0xC0;k+=String.fromCharCode(x|(0x80&(d.charCodeAt(G/8)&0xFF)))}else{k+=d.charAt(G/8)}G+=8}return k}(s);C=function(d){var G=d.length;var F=new Array();for(var k=0;k<G;k++){F[k>>2]|=(d.charCodeAt(k)&255)<<((k%4)*8)}F[(Math.ceil((G+9)/64)*64>>2)-1]|=(G*8);F[Math.ceil((G+9)/64)*16-2]=G*8;return F}(s);j=1732584193;k=4023233417;m=2562383102;l=271733878;for(N=0;N<C.length;N+=16){O=j;M=k;Q=m;o=l;j=r(j,k,m,l,C[N+0],7,3614090360);l=r(l,j,k,m,C[N+1],12,3905402710);m=r(m,l,j,k,C[N+2],17,606105819);k=r(k,m,l,j,C[N+3],22,3250441966);j=r(j,k,m,l,C[N+4],7,4118548399);l=r(l,j,k,m,C[N+5],12,1200080426);m=r(m,l,j,k,C[N+6],17,2821735955);k=r(k,m,l,j,C[N+7],22,4249261313);j=r(j,k,m,l,C[N+8],7,1770035416);l=r(l,j,k,m,C[N+9],12,2336552879);m=r(m,l,j,k,C[N+10],17,4294925233);k=r(k,m,l,j,C[N+11],22,2304563134);j=r(j,k,m,l,C[N+12],7,1804603682);l=r(l,j,k,m,C[N+13],12,4254626195);m=r(m,l,j,k,C[N+14],17,2792965006);k=r(k,m,l,j,C[N+15],22,1236535329);j=q(j,k,m,l,C[N+1],5,4129170786);l=q(l,j,k,m,C[N+6],9,3225465664);m=q(m,l,j,k,C[N+11],14,643717713);k=q(k,m,l,j,C[N+0],20,3921069994);j=q(j,k,m,l,C[N+5],5,3593408605);l=q(l,j,k,m,C[N+10],9,38016083);m=q(m,l,j,k,C[N+15],14,3634488961);k=q(k,m,l,j,C[N+4],20,3889429448);j=q(j,k,m,l,C[N+9],5,568446438);l=q(l,j,k,m,C[N+14],9,3275163606);m=q(m,l,j,k,C[N+3],14,4107603335);k=q(k,m,l,j,C[N+8],20,1163531501);j=q(j,k,m,l,C[N+13],5,2850285829);l=q(l,j,k,m,C[N+2],9,4243563512);m=q(m,l,j,k,C[N+7],14,1735328473);k=q(k,m,l,j,C[N+12],20,2368359562);j=p(j,k,m,l,C[N+5],4,4294588738);l=p(l,j,k,m,C[N+8],11,2272392833);m=p(m,l,j,k,C[N+11],16,1839030562);k=p(k,m,l,j,C[N+14],23,4259657740);j=p(j,k,m,l,C[N+1],4,2763975236);l=p(l,j,k,m,C[N+4],11,1272893353);m=p(m,l,j,k,C[N+7],16,4139469664);k=p(k,m,l,j,C[N+10],23,3200236656);j=p(j,k,m,l,C[N+13],4,681279174);l=p(l,j,k,m,C[N+0],11,3936430074);m=p(m,l,j,k,C[N+3],16,3572445317);k=p(k,m,l,j,C[N+6],23,76029189);j=p(j,k,m,l,C[N+9],4,3654602809);l=p(l,j,k,m,C[N+12],11,3873151461);m=p(m,l,j,k,C[N+15],16,530742520);k=p(k,m,l,j,C[N+2],23,3299628645);j=n(j,k,m,l,C[N+0],6,4096336452);l=n(l,j,k,m,C[N+7],10,1126891415);m=n(m,l,j,k,C[N+14],15,2878612391);k=n(k,m,l,j,C[N+5],21,4237533241);j=n(j,k,m,l,C[N+12],6,1700485571);l=n(l,j,k,m,C[N+3],10,2399980690);m=n(m,l,j,k,C[N+10],15,4293915773);k=n(k,m,l,j,C[N+1],21,2240044497);j=n(j,k,m,l,C[N+8],6,1873313359);l=n(l,j,k,m,C[N+15],10,4264355552);m=n(m,l,j,k,C[N+6],15,2734768916);k=n(k,m,l,j,C[N+13],21,1309151649);j=n(j,k,m,l,C[N+4],6,4149444226);l=n(l,j,k,m,C[N+11],10,3174756917);m=n(m,l,j,k,C[N+2],15,718787259);k=n(k,m,l,j,C[N+9],21,3951481745);j=K(j,O);k=K(k,M);m=K(m,Q);l=K(l,o)}return(u(j)+u(k)+u(m)+u(l)).toLowerCase();}
 var INV_BASE='https://www.tumcapp.com';
 var PROXIES=[
   null, // direct first
@@ -730,6 +731,9 @@ var WORK_MODES={B:'Battery',L:'Line/Grid',S:'Standby',F:'Fault',P:'Power Save',H
 
 function invLoad(){
   var u=localStorage.getItem('inv_user'),p=localStorage.getItem('inv_pass'),s=localStorage.getItem('inv_sn'),t=localStorage.getItem('inv_token');
+  // Always prefill SN
+  var snInput=document.getElementById('inv-sn-input');
+  if(snInput&&!s) snInput.value='96312503102153';
   if(u&&p&&s){
     invSN=s; invToken=t||null;
     document.getElementById('inv-login').style.display='none';
@@ -807,8 +811,8 @@ async function invLogin(){
   if(!u||!p) return false;
   try{
     var u=localStorage.getItem('inv_user'),p=localStorage.getItem('inv_pass');
-    var loginBody='loginName='+encodeURIComponent(u)+'&loginPassword='+encodeURIComponent(p);
-    addLog('INV login body: '+loginBody.replace(encodeURIComponent(p),'***'));
+    var loginBody='loginName='+encodeURIComponent(u)+'&loginPassword='+encodeURIComponent(md5(p));
+    addLog('INV login body: loginName='+u+'&loginPassword='+md5(p).substring(0,8)+'...');
     var json=await proxyFetch('/app/api/mobile/user/login','POST',{},loginBody);
     addLog('INV login resp code: '+(json?json.code:'null'));
     if(json&&json.code===0&&json.data&&json.data.token){
