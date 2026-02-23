@@ -110,7 +110,7 @@ html,body{height:100%;background:var(--bg);font-family:var(--body);color:var(--t
     <div style="width:32px"></div>
     <div style="text-align:center">
       <div id="header-title">Ziewnic BMS</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:1px">BUILD 20260223-15</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:1px">BUILD 20260223-16</div>
     </div>
     <button id="connect-btn" onclick="toggleBLE()">
       <div class="live-dot" id="live-dot"></div>
@@ -726,11 +726,12 @@ var PROXIES=[
   'https://thingproxy.freeboard.io/fetch/'
 ];
 var activeProxy=0;
-var invToken=null, invSN=null, invPollTimer=null;
+var invToken=null, invVrtKey=null, invSN=null, invPollTimer=null;
 var WORK_MODES={B:'Battery',L:'Line/Grid',S:'Standby',F:'Fault',P:'Power Save',H:'Hybrid'};
 
 function invLoad(){
   var u=localStorage.getItem('inv_user'),p=localStorage.getItem('inv_pass'),s=localStorage.getItem('inv_sn'),t=localStorage.getItem('inv_token');
+  invVrtKey=localStorage.getItem('inv_vrt')||null;
 // Always prefill SN as value (not just placeholder)
   var snInput=document.getElementById('inv-sn-input');
   if(snInput) snInput.value=s||'96312503102153';
@@ -818,7 +819,9 @@ async function invLogin(){
     addLog('INV resp: '+json.code+' '+(json.message||''));
     if(json&&json.code===0&&json.data&&json.data.token){
       invToken=json.data.token;
+      invVrtKey=json.data.vrtKey||'';
       localStorage.setItem('inv_token',invToken);
+      localStorage.setItem('inv_vrt',invVrtKey);
       addLog('INV login OK','ok');
       return true;
     }
@@ -839,7 +842,7 @@ async function invFetchNow(){
   }
   try{
     var json=await proxyFetch('/app/api/mobile/realData/getRealByDeviceSn','POST',
-      {'token':invToken},'deviceSn='+encodeURIComponent(invSN));
+      {'token':invToken,'vrt':invVrtKey||''},'deviceSn='+encodeURIComponent(invSN));
     if(json.code===0&&json.data){
       invUpdateUI(json.data);
       invSetStatus('ok');
