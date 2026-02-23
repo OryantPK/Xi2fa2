@@ -110,7 +110,7 @@ html,body{height:100%;background:var(--bg);font-family:var(--body);color:var(--t
     <div style="width:32px"></div>
     <div style="text-align:center">
       <div id="header-title">Ziewnic BMS</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:1px">BUILD 20260223-12</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:1px">BUILD 20260223-13</div>
     </div>
     <button id="connect-btn" onclick="toggleBLE()">
       <div class="live-dot" id="live-dot"></div>
@@ -731,9 +731,9 @@ var WORK_MODES={B:'Battery',L:'Line/Grid',S:'Standby',F:'Fault',P:'Power Save',H
 
 function invLoad(){
   var u=localStorage.getItem('inv_user'),p=localStorage.getItem('inv_pass'),s=localStorage.getItem('inv_sn'),t=localStorage.getItem('inv_token');
-  // Always prefill SN
+// Always prefill SN as value (not just placeholder)
   var snInput=document.getElementById('inv-sn-input');
-  if(snInput&&!s) snInput.value='96312503102153';
+  if(snInput) snInput.value=s||'96312503102153';
   if(u&&p&&s){
     invSN=s; invToken=t||null;
     document.getElementById('inv-login').style.display='none';
@@ -809,23 +809,30 @@ async function proxyFetch(path, method, headers, body){
 async function invLogin(){
   var u=localStorage.getItem('inv_user'),p=localStorage.getItem('inv_pass');
   if(!u||!p) return false;
-  try{
-    var u=localStorage.getItem('inv_user'),p=localStorage.getItem('inv_pass');
-    var loginBody='loginName='+encodeURIComponent(u)+'&loginPassword='+encodeURIComponent(md5(p));
-    addLog('INV login body: loginName='+u+'&loginPassword='+md5(p).substring(0,8)+'...');
-    var json=await proxyFetch('/app/api/mobile/user/login','POST',{},loginBody);
-    addLog('INV login resp code: '+(json?json.code:'null'));
-    if(json&&json.code===0&&json.data&&json.data.token){
-      invToken=json.data.token;
-      localStorage.setItem('inv_token',invToken);
-      return true;
-    }
-    addLog('INV login failed: '+(json?json.message:'no data'),'err');
-    return false;
-  }catch(e){
-    addLog('INV login exception: '+e.message,'err');
-    return false;
+  // Try different password encoding strategies
+  var strategies=[
+    {label:'plain',    pass:p},
+    {label:'md5',      pass:md5(p)},
+    {label:'MD5upper', pass:md5(p).toUpperCase()},
+    {label:'md5lower', pass:md5(p.toLowerCase())},
+    {label:'md5user',  pass:md5(u.toLowerCase()+p)}
+  ];
+  for(var si=0;si<strategies.length;si++){
+    var s=strategies[si];
+    try{
+      addLog('INV trying pw strat: '+s.label);
+      var loginBody='loginName='+encodeURIComponent(u)+'&loginPassword='+encodeURIComponent(s.pass);
+      var json=await proxyFetch('/app/api/mobile/user/login','POST',{},loginBody);
+      addLog('INV resp: '+json.code+' '+json.message);
+      if(json&&json.code===0&&json.data&&json.data.token){
+        invToken=json.data.token;
+        localStorage.setItem('inv_token',invToken);
+        addLog('INV login OK with: '+s.label,'ok');
+        return true;
+      }
+    }catch(e){addLog('INV strat '+s.label+' err: '+e.message,'err');}
   }
+  return false;
 }
 
 async function invFetchNow(){
