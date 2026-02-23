@@ -110,7 +110,7 @@ html,body{height:100%;background:var(--bg);font-family:var(--body);color:var(--t
     <div style="width:32px"></div>
     <div style="text-align:center">
       <div id="header-title">Ziewnic BMS</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:1px">BUILD 20260223-13</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:1px">BUILD 20260223-14</div>
     </div>
     <button id="connect-btn" onclick="toggleBLE()">
       <div class="live-dot" id="live-dot"></div>
@@ -809,42 +809,32 @@ async function proxyFetch(path, method, headers, body){
 async function invLogin(){
   var u=localStorage.getItem('inv_user'),p=localStorage.getItem('inv_pass');
   if(!u||!p) return false;
-  // Try different password encoding strategies
-  var strategies=[
-    {label:'plain',    pass:p},
-    {label:'md5',      pass:md5(p)},
-    {label:'MD5upper', pass:md5(p).toUpperCase()},
-    {label:'md5lower', pass:md5(p.toLowerCase())},
-    {label:'md5user',  pass:md5(u.toLowerCase()+p)}
-  ];
-  for(var si=0;si<strategies.length;si++){
-    var s=strategies[si];
-    try{
-      addLog('INV trying pw strat: '+s.label);
-      var loginBody='loginName='+encodeURIComponent(u)+'&loginPassword='+encodeURIComponent(s.pass);
-      var json=await proxyFetch('/app/api/mobile/user/login','POST',{},loginBody);
-      addLog('INV resp: '+json.code+' '+json.message);
-      if(json&&json.code===0&&json.data&&json.data.token){
-        invToken=json.data.token;
-        localStorage.setItem('inv_token',invToken);
-        addLog('INV login OK with: '+s.label,'ok');
-        return true;
-      }
-    }catch(e){addLog('INV strat '+s.label+' err: '+e.message,'err');}
+  try{
+    var hashedPw=md5(p);
+    addLog('INV login: username='+u+' password='+hashedPw.substring(0,8)+'...');
+    var loginBody='username='+encodeURIComponent(u)+'&password='+encodeURIComponent(hashedPw);
+    var json=await proxyFetch('/app/api/mobile/user/login','POST',{},loginBody);
+    addLog('INV resp: '+json.code+' '+(json.message||''));
+    if(json&&json.code===0&&json.data&&json.data.token){
+      invToken=json.data.token;
+      localStorage.setItem('inv_token',invToken);
+      addLog('INV login OK','ok');
+      return true;
+    }
+    addLog('INV login failed: '+json.message,'err');
+    return false;
+  }catch(e){
+    addLog('INV login exception: '+e.message,'err');
+    return false;
   }
-  return false;
 }
 
 async function invFetchNow(){
   invSetStatus('connecting');
   if(!invToken){
-    var u=localStorage.getItem('inv_user');
-    var s=localStorage.getItem('inv_sn');
-    addLog('INV creds: user='+(u?u:'MISSING')+' sn='+(s?s:'MISSING'));
     addLog('INV logging in...');
     var ok=await invLogin();
-    if(!ok){invSetStatus('error');addLog('INV login failed','err');return;}
-    addLog('INV login OK','ok');
+    if(!ok){invSetStatus('error');return;}
   }
   try{
     var json=await proxyFetch('/app/api/mobile/realData/getRealByDeviceSn','POST',
