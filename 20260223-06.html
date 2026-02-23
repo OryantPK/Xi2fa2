@@ -110,7 +110,7 @@ html,body{height:100%;background:var(--bg);font-family:var(--body);color:var(--t
     <div style="width:32px"></div>
     <div style="text-align:center">
       <div id="header-title">Ziewnic BMS</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:1px">BUILD 20260223-07</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:1px">BUILD 20260223-08</div>
     </div>
     <button id="connect-btn" onclick="toggleBLE()">
       <div class="live-dot" id="live-dot"></div>
@@ -719,9 +719,9 @@ function updateTempUI(temps){
 // ── iSOLAR API ────────────────────────────────────────────────────────────────
 var INV_BASE='https://www.tumcapp.com';
 var PROXIES=[
+  'https://proxy.cors.sh/',
   'https://corsproxy.io/?url=',
-  'https://api.allorigins.win/raw?url=',
-  'https://proxy.cors.sh/'
+  'https://thingproxy.freeboard.io/fetch/'
 ];
 var activeProxy=0;
 var invToken=null, invSN=null, invPollTimer=null;
@@ -767,19 +767,33 @@ function invLogout(){
 
 async function proxyFetch(path, method, headers, body){
   var lastErr;
+  var fullUrl=INV_BASE+path;
   for(var i=0;i<PROXIES.length;i++){
     var pi=(activeProxy+i)%PROXIES.length;
     try{
-      var url=PROXIES[pi]+encodeURIComponent(INV_BASE+path);
-      addLog('INV trying proxy '+(pi+1)+': '+PROXIES[pi].split('/')[2]);
-      var opts={method:method,headers:Object.assign({'Content-Type':'application/x-www-form-urlencoded'},headers)};
+      var proxyUrl=PROXIES[pi]+encodeURIComponent(fullUrl);
+      addLog('INV proxy '+(pi+1)+': '+PROXIES[pi].split('/')[2]);
+      var opts={
+        method:method,
+        headers:Object.assign({
+          'Content-Type':'application/x-www-form-urlencoded',
+          'x-requested-with':'XMLHttpRequest'
+        },headers)
+      };
       if(body) opts.body=body;
-      var resp=await fetch(url,opts);
+      var resp=await fetch(proxyUrl,opts);
       var txt=await resp.text();
-      var json=JSON.parse(txt);
+      // Strip any proxy wrapper (allorigins wraps in {contents:...})
+      var json;
+      try{json=JSON.parse(txt);}catch(pe){
+        var m=txt.match(/"contents"\s*:\s*"([\s\S]+?)"\s*}/);
+        if(m) json=JSON.parse(m[1].replace(/\\"/g,'"'));
+        else throw new Error('Bad JSON');
+      }
+      if(json.contents) json=JSON.parse(json.contents);
       activeProxy=pi;
       return json;
-    }catch(e){lastErr=e;addLog('INV proxy '+(pi+1)+' failed: '+e.message,'err');}
+    }catch(e){lastErr=e;addLog('INV p'+(pi+1)+' fail: '+e.message.substring(0,40),'err');}
   }
   throw lastErr||new Error('All proxies failed');
 }
