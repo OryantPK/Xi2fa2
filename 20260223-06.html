@@ -110,7 +110,7 @@ html,body{height:100%;background:var(--bg);font-family:var(--body);color:var(--t
     <div style="width:32px"></div>
     <div style="text-align:center">
       <div id="header-title">Ziewnic BMS</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:1px">BUILD 20260223-06</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:1px">BUILD 20260223-07</div>
     </div>
     <button id="connect-btn" onclick="toggleBLE()">
       <div class="live-dot" id="live-dot"></div>
@@ -693,13 +693,14 @@ function updateBasicUI(d){
   document.getElementById('inv-bat-w').textContent=power.toFixed(0)+' W';
   document.getElementById('inv-bat-soc').textContent=d.soc+' % SOC';
   var arrBat=document.getElementById('arr-bat');
-  if(d.current>0.5){arrBat.textContent='up';arrBat.className='flow-arrow act';}
-  else if(d.current<-0.5){arrBat.textContent='dn';arrBat.className='flow-arrow dchg';}
-  else{arrBat.textContent='--';arrBat.className='flow-arrow';}
-  if(d.temps&&d.temps.length>=1) document.getElementById('inv-t-int').textContent=d.temps[0].toFixed(1)+' C';
-  if(d.temps&&d.temps.length>=3) document.getElementById('inv-t-hs').textContent=d.temps[2].toFixed(1)+' C';
-  var n=new Date(),hh=n.getHours().toString().padStart(2,'0'),mm2=n.getMinutes().toString().padStart(2,'0'),ss=n.getSeconds().toString().padStart(2,'0');
-  document.getElementById('inv-sync-time').textContent=n.getFullYear()+'-'+(n.getMonth()+1).toString().padStart(2,'0')+'-'+n.getDate().toString().padStart(2,'0')+' '+hh+':'+mm2+':'+ss;
+  if(d.current>0.5){arrBat.innerHTML='&#8593;';arrBat.style.color='var(--green)';}
+  else if(d.current<-0.5){arrBat.innerHTML='&#8595;';arrBat.style.color='var(--red)';}
+  else{arrBat.innerHTML='&#8212;';arrBat.style.color='#2a4020';}
+  // Update inverter battery section from live BMS (NOT temps - those come from iSolar API)
+  document.getElementById('inv-bv').textContent=d.voltage.toFixed(1)+' V';
+  document.getElementById('inv-bsoc').textContent=d.soc+' %';
+  document.getElementById('inv-ba').textContent=(d.current>=0?'+':'')+d.current.toFixed(1)+' A';
+  document.getElementById('inv-bat-soc').textContent=d.soc+' % SOC';
 }
 function updateCellUI(cells){
   var max=Math.max.apply(null,cells),min=Math.min.apply(null,cells),diff=Math.round((max-min)*1000);
@@ -770,11 +771,15 @@ async function proxyFetch(path, method, headers, body){
     var pi=(activeProxy+i)%PROXIES.length;
     try{
       var url=PROXIES[pi]+encodeURIComponent(INV_BASE+path);
+      addLog('INV trying proxy '+(pi+1)+': '+PROXIES[pi].split('/')[2]);
       var opts={method:method,headers:Object.assign({'Content-Type':'application/x-www-form-urlencoded'},headers)};
       if(body) opts.body=body;
       var resp=await fetch(url,opts);
-      if(resp.ok||resp.status===200){activeProxy=pi;return await resp.json();}
-    }catch(e){lastErr=e;}
+      var txt=await resp.text();
+      var json=JSON.parse(txt);
+      activeProxy=pi;
+      return json;
+    }catch(e){lastErr=e;addLog('INV proxy '+(pi+1)+' failed: '+e.message,'err');}
   }
   throw lastErr||new Error('All proxies failed');
 }
@@ -795,24 +800,32 @@ async function invLogin(){
 
 async function invFetchNow(){
   invSetStatus('connecting');
-  if(!invToken){var ok=await invLogin();if(!ok){invSetStatus('error');return;}}
+  if(!invToken){
+    addLog('INV logging in...');
+    var ok=await invLogin();
+    if(!ok){invSetStatus('error');addLog('INV login failed','err');return;}
+    addLog('INV login OK','ok');
+  }
   try{
     var json=await proxyFetch('/app/api/mobile/realData/getRealByDeviceSn','POST',
       {'token':invToken},'deviceSn='+encodeURIComponent(invSN));
     if(json.code===0&&json.data){
       invUpdateUI(json.data);
       invSetStatus('ok');
+      addLog('INV data OK','ok');
       clearInterval(invPollTimer);
       invPollTimer=setInterval(invFetchNow,60000);
     } else if(json.code===401||json.code===403){
+      addLog('INV token expired, re-login...','err');
       invToken=null;
       var ok2=await invLogin();
       if(ok2) await invFetchNow();
       else invSetStatus('error');
     } else {
+      addLog('INV API code: '+json.code+' msg: '+json.message,'err');
       invSetStatus('error');
     }
-  }catch(e){invSetStatus('error');}
+  }catch(e){addLog('INV fetch error: '+e.message,'err');invSetStatus('error');}
 }
 
 function invSetStatus(s){
