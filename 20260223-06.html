@@ -110,7 +110,7 @@ html,body{height:100%;background:var(--bg);font-family:var(--body);color:var(--t
     <div style="width:32px"></div>
     <div style="text-align:center">
       <div id="header-title">Ziewnic BMS</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:1px">BUILD 20260223-08</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:1px">BUILD 20260223-09</div>
     </div>
     <button id="connect-btn" onclick="toggleBLE()">
       <div class="live-dot" id="live-dot"></div>
@@ -719,8 +719,9 @@ function updateTempUI(temps){
 // ── iSOLAR API ────────────────────────────────────────────────────────────────
 var INV_BASE='https://www.tumcapp.com';
 var PROXIES=[
-  'https://proxy.cors.sh/',
+  null, // direct first
   'https://corsproxy.io/?url=',
+  'https://proxy.cors.sh/',
   'https://thingproxy.freeboard.io/fetch/'
 ];
 var activeProxy=0;
@@ -771,31 +772,35 @@ async function proxyFetch(path, method, headers, body){
   for(var i=0;i<PROXIES.length;i++){
     var pi=(activeProxy+i)%PROXIES.length;
     try{
-      var proxyUrl=PROXIES[pi]+encodeURIComponent(fullUrl);
-      addLog('INV proxy '+(pi+1)+': '+PROXIES[pi].split('/')[2]);
+      var proxyUrl=PROXIES[pi]?PROXIES[pi]+encodeURIComponent(fullUrl):fullUrl;
+      var label=PROXIES[pi]?PROXIES[pi].split('/')[2]:'direct';
+      addLog('INV trying: '+label);
       var opts={
         method:method,
-        headers:Object.assign({
-          'Content-Type':'application/x-www-form-urlencoded',
-          'x-requested-with':'XMLHttpRequest'
-        },headers)
+        headers:Object.assign({'Content-Type':'application/x-www-form-urlencoded'},headers)
       };
       if(body) opts.body=body;
       var resp=await fetch(proxyUrl,opts);
       var txt=await resp.text();
-      // Strip any proxy wrapper (allorigins wraps in {contents:...})
+      addLog('INV got('+resp.status+'): '+txt.substring(0,60));
       var json;
       try{json=JSON.parse(txt);}catch(pe){
-        var m=txt.match(/"contents"\s*:\s*"([\s\S]+?)"\s*}/);
-        if(m) json=JSON.parse(m[1].replace(/\\"/g,'"'));
-        else throw new Error('Bad JSON');
+        try{
+          var m=txt.match(/"contents"\s*:\s*"([\s\S]+?)"\s*\}/);
+          if(m) json=JSON.parse(m[1].replace(/\\"/g,'"'));
+          else{addLog('INV bad JSON via '+label,'err');lastErr=new Error('Bad JSON');continue;}
+        }catch(e2){lastErr=e2;continue;}
       }
-      if(json.contents) json=JSON.parse(json.contents);
+      if(json&&json.contents) try{json=JSON.parse(json.contents);}catch(e){}
       activeProxy=pi;
       return json;
-    }catch(e){lastErr=e;addLog('INV p'+(pi+1)+' fail: '+e.message.substring(0,40),'err');}
+    }catch(e){
+      lastErr=e;
+      var msg=e.message||'network error';
+      addLog('INV '+label+' fail: '+msg.substring(0,50),'err');
+    }
   }
-  throw lastErr||new Error('All proxies failed');
+  throw lastErr||new Error('All attempts failed');
 }
 async function invLogin(){
   var u=localStorage.getItem('inv_user'),p=localStorage.getItem('inv_pass');
@@ -803,13 +808,18 @@ async function invLogin(){
   try{
     var json=await proxyFetch('/app/api/mobile/user/login','POST',{},
       'loginName='+encodeURIComponent(u)+'&loginPassword='+encodeURIComponent(p));
-    if(json.code===0&&json.data&&json.data.token){
+    addLog('INV login resp code: '+(json?json.code:'null'));
+    if(json&&json.code===0&&json.data&&json.data.token){
       invToken=json.data.token;
       localStorage.setItem('inv_token',invToken);
       return true;
     }
+    addLog('INV login failed: '+(json?json.message:'no data'),'err');
     return false;
-  }catch(e){return false;}
+  }catch(e){
+    addLog('INV login exception: '+e.message,'err');
+    return false;
+  }
 }
 
 async function invFetchNow(){
