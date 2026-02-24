@@ -717,6 +717,22 @@ function updateTempUI(temps){
 }
 
 // SHA256 implementation
+
+async function calcVrt(bodyString, vrtKey) {
+  // Real iSolar vrt algorithm (extracted from APK):
+  // 1. Sum char codes of body string
+  let h = 0;
+  for(let i=0; i<bodyString.length; i++) h += bodyString.charCodeAt(i);
+  // 2. SHA256 of the sum as string
+  const g = await sha256hex(String(h));
+  const b = g.length;
+  const y = g.substring(0, 8);       // first 8 chars
+  const S = g.substring(b-8, b);     // last 8 chars
+  // 3. SHA256 of vrtKey + last8 + first8
+  const combined = vrtKey + S + y;
+  return await sha256hex(combined);
+}
+
 async function sha256hex(msg){
   var buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(msg));
   return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
@@ -818,8 +834,12 @@ async function invLogin(){
     // If stored password looks like an MD5 hash (32 hex chars), use it directly
     var hashedPw=/^[a-f0-9]{32}$/i.test(p) ? p : md5(p);
     addLog('INV login: username='+u+' pw_hash='+hashedPw.substring(0,8)+'...');
-    var loginBody='username='+encodeURIComponent(u)+'&password='+encodeURIComponent(hashedPw);
-    var json=await proxyFetch('/app/api/mobile/user/login','POST',{},loginBody);
+    var loginBody='username='+u+'&password='+hashedPw;
+    var loginVrtKey=localStorage.getItem('inv_vrt')||'';
+    var loginVrt=loginVrtKey ? await calcVrt(loginBody, loginVrtKey) : '';
+    addLog('INV login vrt: '+(loginVrt?loginVrt.substring(0,8)+'...':'(none)'));
+    var loginHeaders=loginVrt ? {vrt:loginVrt} : {};
+    var json=await proxyFetch('/app/api/mobile/user/login','POST',loginHeaders,loginBody);
     addLog('INV resp: '+json.code+' '+(json.message||''));
     if(json&&json.code===0&&json.data&&json.data.token){
       invToken=json.data.token;
@@ -846,41 +866,19 @@ async function invFetchNow(){
   }
   try{
     var sn=invSN||'';
-    // vrt = sha256(currentToken) — derived from PCAPdroid: login request vrt = sha256(prev token)
-    var vrtSig=await sha256hex(invToken);
-    addLog('INV vrt(token): '+vrtSig.substring(0,8)+'...');
+    // Real iSolar vrt algorithm (reverse-engineered from APK):
+    // sum charCodes of body → sha256(sum) → take first8+last8 chars → sha256(vrtKey+last8+first8)
+    var bodyStr='deviceSn='+sn;
+    var vrtSig=await calcVrt(bodyStr, invVrtKey||'');
+    addLog('INV vrt: '+vrtSig.substring(0,8)+'...');
     var json=await proxyFetch('/app/api/mobile/realData/getRealByDeviceSn','POST',
-      {'token':invToken,'vrt':vrtSig},'deviceSn='+encodeURIComponent(sn));
+      {'token':invToken,'vrt':vrtSig},bodyStr);
     addLog('INV data resp: '+json.code+' '+(json.message||''));
     if(json.code===0&&json.data){
       invUpdateUI(json.data);
       invSetStatus('ok');
       clearInterval(invPollTimer);
       invPollTimer=setInterval(invFetchNow,60000);
-    } else if(json.code===45099){
-      // Try vrt = sha256(vrtKey from login response)
-      addLog('INV trying vrt=sha256(vrtKey)...');
-      var vrtAlt=await sha256hex(invVrtKey||'');
-      json=await proxyFetch('/app/api/mobile/realData/getRealByDeviceSn','POST',
-        {'token':invToken,'vrt':vrtAlt},'deviceSn='+encodeURIComponent(sn));
-      addLog('INV alt resp: '+json.code+' '+(json.message||''));
-      if(json.code===0&&json.data){
-        invUpdateUI(json.data);invSetStatus('ok');
-        clearInterval(invPollTimer);invPollTimer=setInterval(invFetchNow,60000);
-      } else {
-        // Try vrt = vrtKey directly (no sha256)
-        addLog('INV trying vrt=vrtKey raw...');
-        json=await proxyFetch('/app/api/mobile/realData/getRealByDeviceSn','POST',
-          {'token':invToken,'vrt':invVrtKey||''},'deviceSn='+encodeURIComponent(sn));
-        addLog('INV raw resp: '+json.code+' '+(json.message||''));
-        if(json.code===0&&json.data){
-          invUpdateUI(json.data);invSetStatus('ok');
-          clearInterval(invPollTimer);invPollTimer=setInterval(invFetchNow,60000);
-        } else {
-          addLog('INV all vrt attempts failed: '+json.code,'err');
-          invSetStatus('error');
-        }
-      }
     } else if(json.code===401||json.code===403){
       invToken=null;var ok2=await invLogin();
       if(ok2) await invFetchNow(); else invSetStatus('error');
